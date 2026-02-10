@@ -2,40 +2,28 @@ package main
 
 import (
 	"fmt"
-	"math/rand/v2"
+	"net/http"
+	"project/configs"
+	"project/internal/auth"
+	"project/internal/verify"
 )
 
-const iterations = 10
-
 func main() {
-	intCh := make(chan int)
-	squareCh := make(chan int)
-	go getRandomInts(intCh)
-	go getSquares(intCh, squareCh)
-	var res []int
+	appConfig := configs.GetAppConfig()
+	router := http.NewServeMux()
+	auth.NewAuthHandler(router, &appConfig.Auth)
+	verify.NewVerifyHandler(router, &appConfig.Mail)
 
-	for v := range squareCh {
-		res = append(res, v)
+	server := http.Server{
+		Addr:    fmt.Sprintf(":%d", appConfig.ServerPort),
+		Handler: router,
 	}
-	for _, v := range res {
-		fmt.Printf("%d ", v)
-	}
-}
 
-func getRandomInts(out chan<- int) {
-	defer close(out)
-	var res []int
-	for range iterations {
-		res = append(res, rand.IntN(100))
-	}
-	for _, n := range res {
-		out <- n
-	}
-}
+	fmt.Printf("Server started on port %d\n", appConfig.ServerPort)
 
-func getSquares(in <-chan int, out chan<- int) {
-	defer close(out)
-	for n := range in {
-		out <- n * n
+	err := server.ListenAndServe()
+
+	if err != nil {
+		panic(err)
 	}
 }
